@@ -1,0 +1,457 @@
+#!/usr/bin/env bash
+set -o nounset -o errexit -o pipefail
+
+# Uses getopt(1) from util-linux, based on GNU libC getopt(3)
+if getopt --test >/dev/null || [[ $? -ne 4 ]] ; then
+	echo 'Enchanced getopt (from util-linux) is required.'
+	exit 2
+fi
+
+TEMP=$(getopt -s bash -o 'rvqe:o:' --longoptions 'report,executable:,report-path:,verbose,quiet,output-dir:' -- "$@")
+eval set -- "$TEMP"
+unset TEMP
+
+while true ; do
+	opt="$1"
+	shift
+	case "$opt" in
+		'-v' | '--verbose')
+			unset QUIET
+			VERBOSE=1
+			;;
+		'-q' | '--quiet')
+			unset VERBOSE
+			QUIET=1
+			;;
+		'-r' | '--report')
+			REPORT=1
+			;;
+		'--report-path')
+			REPORT_PATH="$1"
+			shift
+			;;
+		'-e' | '--executable')
+			EXECUTABLE="$1"
+			shift
+			;;
+		'-o' | '--output-dir')
+			OUTPUT_DIR="$1"
+			shift
+			;;
+		'--')
+			break
+			;;
+		*)
+			exit 2
+	esac
+	unset opt
+done
+
+if [[ ! -v VERBOSE ]] ; then
+	function log {
+		: ;
+	}
+else
+	function log {
+		echo '|' "$@"
+	}
+fi
+
+if [[ -v QUIET ]] ; then
+	function message {
+		: ;
+	}
+else
+	function message {
+		echo "$@"
+	}
+fi
+
+function error {
+	echo "$@" >&2
+	exit 2
+}
+
+log "Welcome to new tests runner."
+
+PROJECT_DIR="$1"
+if [[ ! -d "$PROJECT_DIR" ]] ; then
+	error "Input directory $PROJECT_DIR does not exist."
+fi
+if [[ ! -v EXECUTABLE ]] ; then
+	EXECUTABLE="$(basename "$PROJECT_DIR")" # FIXME doesn't work with .
+fi
+
+log "PROJECT_DIR=$PROJECT_DIR"
+log "EXECUTABLE=$EXECUTABLE"
+
+EXIT_CODE=0
+
+# : ${MAIN_SRC_REL_PATH:='./src/main.cpp'}
+: ${PUBLIC_SUITE_PATH:="$PROJECT_DIR/tests"}
+: ${OUTPUT_DIR:='./output'}
+
+if [[ ! -d $OUTPUT_DIR ]] ; then
+	mkdir $OUTPUT_DIR
+fi
+rm -rf $OUTPUT_DIR/*
+: ${REPORT_PATH:="$OUTPUT_DIR/tests-report.xml"}
+
+## BUILDING
+
+if [[ -f "$PROJECT_DIR/CMakeLists.txt" ]] ; then
+	BUILD_DIR="$PROJECT_DIR/_build"
+	message "Detected CMake, initializing build directory at $BUILD_DIR."
+	mkdir -p "$BUILD_DIR"
+	if ! cmake -S "$PROJECT_DIR" -B "$BUILD_DIR" -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE='Debug' ; then
+		error "CMake build generation failed"
+	fi
+elif [[ -f "$PROJECT_DIR/Makefile" ]] ; then
+	message "Detected Makefile, using it."
+	BUILD_DIR="$PROJECT_DIR"
+	MAKEFILE_CHECK=1
+else
+	error "Failed to detect build system (Makefile/CMakeLists.txt)"
+fi
+EXECUTABLE_PATH="$BUILD_DIR/$EXECUTABLE"
+ORIGINAL_EXECUTABLE_PATH="$EXECUTABLE_PATH"
+ORIGINAL_BUILD_DIR="$BUILD_DIR"
+
+if ! make -C "$BUILD_DIR" -k ; then
+	error "Vanilla build failed."
+fi
+if [[ ! -f $EXECUTABLE_PATH ]] ; then
+	error "After build has been executed, an expected executable wasn't found at $EXECUTABLE_PATH."
+fi
+if [[ -v MAKEFILE_CHECK ]] && ! make -C "$BUILD_DIR" -q "$EXECUTABLE" ; then
+	error "Makefile is inconsistent, there are pending tasks after the build."
+fi
+
+## RUNNING
+
+if [[ -v REPORT ]] ; then
+	function report {
+		echo "$@" >> "$REPORT_PATH"
+	}
+else
+	function report {
+		: ;
+	}
+fi
+
+function test_error {
+	local INTRO="$1"
+	local TYPE="$2"
+	local MESSAGE="$3"
+	TEST_EXIT_CODE="${4-'1'}"
+
+	local FAILURE_TAG="${FAILURE_TAG-failure}"
+
+	echo "  $INTRO: $MESSAGE"
+	report "<${FAILURE_TAG} message=\"$TYPE\">$MESSAGE</$FAILURE_TAG>"
+}
+
+function compare_files {
+	local EXPECTED_PATH="$1"
+	local ACTUAL_PATH="$2"
+	if [[ ! -f $EXPECTED_PATH ]] ; then
+		return
+	fi
+	if ! diff "$ACTUAL_PATH" "$EXPECTED_PATH" >/dev/null ; then
+		test_error "$3" "$4" "$3 mismatches (simple byte-vs-byte check)."
+		if diff -bB "$ACTUAL_PATH" "$EXPECTED_PATH" >/dev/null ; then
+			test_error "$3" "$4" "$3 mismatches only in whitespaces."
+		fi
+	fi
+}
+
+function report_stdouterr {
+	if [[ ! -v REPORT ]] ; then
+		return
+	fi
+
+	report -n "<system-out>"
+	sed '1000{s/.*/=== TRUNCATED: too many lines ===/;q;}' "$1" | \
+		sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> "$REPORT_PATH"
+	report "</system-out>"
+	report -n "<system-err>"
+	sed '1000{s/.*/=== TRUNCATED: too many lines ===/;q;}' "$2" | \
+		sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> "$REPORT_PATH"
+	report "</system-err>"
+}
+
+function template {
+	sed \
+		-e "s:TESTS_DIR:${TESTS_DIR//:/\\:}:g" \
+		-e "s:OUTPUT_DIR:${RUN_OUTPUT_DIR//:/\\:}:g" \
+		-e "s:OUTPUT_FILE:${RUN_FILE//:/\\:}:g" \
+		-e "s:TMP_FILE:${TMP_FILE//:/\\:}:g" \
+		"$1"
+}
+
+function customize_build {
+	key="$1"
+	context="$2"
+
+	if [[ -f "$TESTS_DIR/$key.custom-build.env" ]] ; then
+		log 'I see env-style custom build.'
+		local MODE
+		local REPLACE_PROJECT_DIR
+		local REPLACE_TARGET
+		local REPLACE_WITH
+		local REPLACE_EXECUTABLE_PATH
+
+		source "$TESTS_DIR/$key.custom-build.env"
+	else
+		return 0
+	fi
+
+	case "$MODE" in
+		testee)
+			local REPLACE_PROJECT_DIR="$PROJECT_DIR"
+			local REPLACE_BUILD_DIR="$ORIGINAL_BUILD_DIR"
+			local REPLACE_WITH="$TESTS_DIR/$REPLACE_WITH"
+			local REPLACE_EXECUTABLE_PATH="$ORIGINAL_EXECUTABLE_PATH"
+			;;
+		standalone)
+			local REPLACE_PROJECT_DIR="$TESTS_DIR/$REPLACE_PROJECT_DIR"
+			local REPLACE_BUILD_DIR="$REPLACE_PROJECT_DIR" # Will only work for Makefile projects
+			local REPLACE_WITH="$PROJECT_DIR/$REPLACE_WITH"
+			local REPLACE_EXECUTABLE_PATH="$REPLACE_BUILD_DIR/$REPLACE_EXECUTABLE_PATH"
+			;;
+		*)
+			FAILURE_TAG=error test_error 'Internal error' 'interal-error' "Illegal custom build mode $MODE"
+			return 1
+	esac
+
+	local REPLACE_TARGET="$REPLACE_PROJECT_DIR/$REPLACE_TARGET"
+	local REPLACE_ORIGINAL="$REPLACE_TARGET.__backup__"
+
+	log "Preparing a custom build:"
+	log "  MODE=$MODE"
+	log "  REPLACE_PROJECT_DIR=$REPLACE_PROJECT_DIR"
+	log "  REPLACE_BUILD_DIR=$REPLACE_BUILD_DIR"
+	log "  "
+	log "  REPLACE_TARGET=$REPLACE_TARGET"
+	log "  REPLACE_WITH=$REPLACE_WITH"
+	log "  REPLACE_EXECUTABLE_PATH=$REPLACE_EXECUTABLE_PATH"
+
+	if [[ ! -e "$REPLACE_TARGET" ]] ; then
+		report "<testcase name=\"CUSTOM BUILD FAILURE\">"
+		test_error 'Custom build' 'custom-build' "Custom build failed: no file to replace."
+		report "</testcase>"
+		echo "Custom build failed because file to be replaced is not found."
+		return 1
+	fi
+
+	mv "$REPLACE_TARGET" "$REPLACE_ORIGINAL"
+	cp -r "$REPLACE_WITH" "$REPLACE_TARGET"
+
+	message "Rebuilding project with file replacement..."
+
+	local CUSTOM_BUILD_STDOUT="$RUN_OUTPUT_DIR/$key.custom-build-stdout.log"
+	local CUSTOM_BUILD_STDERR="$RUN_OUTPUT_DIR/$key.custom-build-stderr.log"
+
+	if ! make -C "$REPLACE_BUILD_DIR" -k > "$CUSTOM_BUILD_STDOUT" 2> "$CUSTOM_BUILD_STDERR"; then
+		rm -rf "$REPLACE_TARGET"
+		mv "$REPLACE_ORIGINAL" "$REPLACE_TARGET"
+
+		report "<testcase name=\"CUSTOM BUILD FAILURE\">"
+		test_error 'Custom build' 'custom-build' "Custom build failed."
+		report_stdouterr "$CUSTOM_BUILD_STDOUT" "$CUSTOM_BUILD_STDERR"
+		report "</testcase>"
+		echo "Custom build for $context failed, aborting."
+		return 1
+	fi
+
+	message "Rebuild completed."
+	EXECUTABLE_PATH="$REPLACE_EXECUTABLE_PATH"
+
+	rm -rf "$REPLACE_TARGET"
+	mv "$REPLACE_ORIGINAL" "$REPLACE_TARGET"
+}
+
+function run_tests {
+	local TESTS_NAME="$1"
+	local TESTS_DIR="$2"
+
+	if [[ ! -d "$TESTS_DIR" ]] ; then
+		return 0
+	fi
+
+	local GEN_PATH="$TESTS_DIR/gen-tests"
+	if [[ -x "$GEN_PATH" ]] ; then
+		if ! "$GEN_PATH" ; then
+			report "<testsuite name=\"$TESTS_NAME\" tests=\"0\">"
+			FAILURE_TAG=error test_error 'Internal error' 'internal-error' "Failed to generate tests"
+			EXIT_CODE=2
+			report "</testsuite>"
+			return 1
+		fi
+	fi
+	unset GEN_PATH
+
+	local TIME_LIMIT=10
+	local VG_TIME_LIMIT="$TIME_LIMIT"
+
+	function custom_check { : ; }
+
+	local EXT_PATH="$TESTS_DIR/run-tests.ext.bash"
+	if [[ -f "$EXT_PATH" ]] ; then
+		# What a dirty hack.
+		# I have no idea of a better thing to do.
+		log 'Loading extensions'
+		source "$EXT_PATH"
+	fi
+	unset EXT_PATH
+
+	local COUNT=0
+	for t in "$TESTS_DIR"/*.test.* ; do
+		(( COUNT += 1 ))
+	done
+
+	report "<testsuite name=\"$TESTS_NAME\" tests=\"$COUNT\">"
+
+	if ! mkdir "$OUTPUT_DIR/$TESTS_NAME" ; then
+		FAILURE_TAG=error test_error 'Internal error' 'internal-error' "Failed to create outputs directory".
+		report "</testsuite>"
+		EXIT_CODE=2
+		return 1
+	fi
+
+	local RUN_OUTPUT_DIR="$OUTPUT_DIR/$TESTS_NAME"
+
+	local EXECUTABLE_PATH="$ORIGINAL_EXECUTABLE_PATH"
+	if ! customize_build 'build-replace' "$TESTS_NAME suite" ; then
+		report "</testsuite>"
+		EXIT_CODE=2
+		return
+	fi
+	local PRESERVE_EXECUTABLE_PATH="$EXECUTABLE_PATH"
+
+	for TEST_PATH in "$TESTS_DIR"/*.test.* ; do
+		EXECUTABLE_PATH="$PRESERVE_EXECUTABLE_PATH"
+
+		local TEST_FILE_NAME="$(basename "$TEST_PATH")"
+		local TEST_TYPE="${TEST_FILE_NAME##*.}"
+		local TEST_NAME="${TEST_FILE_NAME%%.test.$TEST_TYPE}"
+
+		local EXPECTED_STDOUT="$TESTS_DIR/$TEST_NAME.expected-output"
+		local EXPECTED_FILE="$TESTS_DIR/$TEST_NAME.expected-file"
+
+		local RUN_STDOUT="$RUN_OUTPUT_DIR/$TEST_NAME.stdout.log"
+		local RUN_STDERR="$RUN_OUTPUT_DIR/$TEST_NAME.stderr.log"
+		local RUN_FILE="$RUN_OUTPUT_DIR/$TEST_NAME.output.bin"
+		local TMP_FILE="$RUN_OUTPUT_DIR/$TEST_NAME.tmp.bin"
+
+		local TEST_EXIT_CODE=0
+
+		report "<testcase name=\"$TEST_NAME\">"
+
+		if ! customize_build "$TEST_NAME" "single test $TEST_NAME" ; then
+			report "</testcase>"
+			EXIT_CODE=2
+			continue
+		fi
+
+		echo "Executing $TESTS_NAME test $TEST_NAME."
+		case "$TEST_TYPE" in
+			"args" | "args-fail" | "args-no-vg" | "args-fail-no-vg")
+				local TEST_ARGS="$(template "$TEST_PATH")"
+				local TEST_CMD="$EXECUTABLE_PATH $TEST_ARGS < /dev/null"
+				;;
+			"input" | "input-no-vg")
+				local RENDERED_TEST_PATH="$RUN_OUTPUT_DIR/$TEST_NAME.stdin"
+				template "$TEST_PATH" > "$RENDERED_TEST_PATH"
+				local TEST_CMD="$EXECUTABLE_PATH < $RENDERED_TEST_PATH"
+				;;
+			*)
+				FAILURE_TAG=error test_error 'Internal error' 'internal-error' "Unknown test type $TEST_TYPE."
+				report "</testcase>"
+				EXIT_CODE=2
+				continue
+				;;
+		esac
+
+		local RUN_TEST="$TEST_CMD > '$RUN_STDOUT' 2> '$RUN_STDERR'"
+		# Bash parses && before word expansion, can't store EVAL settings in variable.
+		log "About to run '$RUN_TEST'"
+		local RUN_EXIT_CODE="$(ulimit -v $((500 * 1024)) && ulimit -St "$TIME_LIMIT" && ulimit -Ht "$((TIME_LIMIT + 1))" && ulimit -f $((10 * 1024)) && eval $RUN_TEST ; echo $?)"
+		log RUN_EXIT_CODE="$RUN_EXIT_CODE"
+		# TODO: should we filter stdout for prompts? IDK.
+
+		if [[ $TEST_TYPE != 'args-fail' ]] ; then
+			if [[ $RUN_EXIT_CODE != 0 ]] ; then
+				test_error 'Exit code' 'exit-code' "Execution failed with code $RUN_EXIT_CODE."
+			fi
+		else
+			if [[ $RUN_EXIT_CODE == 0 ]] ; then
+				test_error 'Exit code' 'exit-code' "Execution NOT failed (when expected)."
+			fi
+			if [[ -f "$RUN_FILE" ]] ; then
+				test_error "Output file" 'output-file' "Output file must not be created."
+			fi
+		fi
+
+		compare_files "$EXPECTED_STDOUT" "$RUN_STDOUT" 'Stdout' 'stdout'
+		compare_files "$EXPECTED_FILE" "$RUN_FILE" 'Output file' 'output'
+		custom_check
+
+		report_stdouterr "$RUN_STDOUT" "$RUN_STDERR"
+
+		report "</testcase>"
+
+		if [[ $TEST_TYPE != *-no-vg ]] ; then
+			echo "  Executing with valgrind now..."
+
+			report "<testcase name=\"$TEST_NAME (run with Valgrind)\">"
+
+			local RUN_STDOUT="$RUN_OUTPUT_DIR/$TEST_NAME.vg-stdout.log"
+			local RUN_STDERR="$RUN_OUTPUT_DIR/$TEST_NAME.vg-stderr.log"
+			local RUN_FILE="$RUN_OUTPUT_DIR/$TEST_NAME.vg-output.bin"
+
+			local RUN_TEST="valgrind --leak-check=full --error-exitcode=123 -- $TEST_CMD > '$RUN_STDOUT' 2> '$RUN_STDERR'"
+			log "About to run '$RUN_TEST'"
+			local RUN_EXIT_CODE="$(ulimit -v $((500 * 1024)) && ulimit -St "$VG_TIME_LIMIT" && ulimit -Ht "$((VG_TIME_LIMIT + 1))" && ulimit -f $((10 * 1024)) && eval $RUN_TEST ; echo $?)"
+			log RUN_EXIT_CODE="$RUN_EXIT_CODE"
+
+			if [[ $TEST_TYPE != 'args-fail' ]] ; then
+				if [[ $RUN_EXIT_CODE != 0 ]] ; then
+					test_error 'Exit code' 'exit-code' "Execution failed with code $RUN_EXIT_CODE."
+				fi
+			else
+				if [[ $RUN_EXIT_CODE == 0 ]] ; then
+					test_error 'Exit code' 'exit-code' "Execution NOT failed (when expected)."
+				fi
+				if [[ -f "$RUN_FILE" ]] ; then
+					test_error "Output file" 'output-file' "Output file must not be created."
+				fi
+			fi
+
+			report_stdouterr "$RUN_STDOUT" "$RUN_STDERR"
+
+			report "</testcase>"
+		fi
+
+		if [[ $TEST_EXIT_CODE != 0 ]] ; then
+			echo "  Test failed."
+			EXIT_CODE=1
+		else
+			echo "  Test succeeded."
+		fi
+	done
+
+	report "</testsuite>"
+}
+
+if [[ -v REPORT ]] ; then
+	echo '<?xml version="1.0" encoding="UTF-8"?>' > "$REPORT_PATH"
+	echo '<testsuites>' >> "$REPORT_PATH"
+fi
+
+run_tests 'public' "$PUBLIC_SUITE_PATH"
+run_tests 'private' "${PRIVATE_SUITE_PATH-/dev/null}"
+
+report '</testsuites>'
+
+exit "$EXIT_CODE"
