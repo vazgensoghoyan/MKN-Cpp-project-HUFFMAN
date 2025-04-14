@@ -45,6 +45,8 @@ void huffman::HuffmanTree::build_tree(const std::map<unsigned char, std::size_t>
 
     if (!minHeap.empty())
         root_ = minHeap.top();
+
+    generateCodeHelper(root_, "", symbolCodes_);
 }
 
 void huffman::HuffmanTree::delete_tree(Node* node) {
@@ -53,4 +55,19 @@ void huffman::HuffmanTree::delete_tree(Node* node) {
         delete_tree(node->right);
         delete node;
     }
+}
+
+std::map<unsigned char, std::string> huffman::HuffmanTree::get_codes() const {
+    return symbolCodes_;
+}
+
+void huffman::HuffmanTree::generateCodeHelper(Node* node, std::string code, 
+                            std::map<unsigned char, std::string>& huffmanCode) {
+    if (node->right)
+        generateCodeHelper(node->right, code + "0", huffmanCode);
+    if (node->left)
+        generateCodeHelper(node->left, code + "1", huffmanCode);
+    
+    if (!node->right && !node->left)
+        huffmanCode[node->data] = (code == "" ? "0" : code);
 }

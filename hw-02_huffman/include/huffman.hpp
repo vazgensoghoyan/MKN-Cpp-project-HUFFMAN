@@ -6,6 +6,7 @@
 #include <map>
 #include <stdexcept>
 #include <iostream>
+#include <string>
 
 namespace huffman {
 
@@ -82,6 +83,8 @@ private:
 
 
     void delete_tree(Node* node);
+    void generateCodeHelper(Node* node, std::string code, 
+                            std::map<unsigned char, std::string>& codes);
 
 public:
     HuffmanTree();
@@ -89,13 +92,16 @@ public:
     ~HuffmanTree();
     
     void build_tree(const std::map<unsigned char, std::size_t>& freqMap);
+    std::map<unsigned char, std::string> get_codes() const;
 
-    void print() {
+    void print() const {
         HuffmanTreePrinter::printTree(root_);
     }
 
 private:
     Node* root_;
+    std::map<unsigned char, std::string> symbolCodes_;
+    
 };
 
 struct ArchiveInfo {
