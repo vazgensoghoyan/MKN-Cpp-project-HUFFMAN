@@ -13,7 +13,7 @@ huffman::HuffmanTree::HuffmanTree(const std::map<unsigned char, std::size_t>& fr
 huffman::HuffmanTree::~HuffmanTree() {
     delete_tree(root_);
 }
-        
+
 void huffman::HuffmanTree::build_tree(const std::map<unsigned char, std::size_t>& freqMap) {
     if (freqMap.empty()) {
         root_ = nullptr;
@@ -36,7 +36,7 @@ void huffman::HuffmanTree::build_tree(const std::map<unsigned char, std::size_t>
         Node* right = minHeap.top();
         minHeap.pop();
 
-        auto top = new Node('\0', left->freq + right->freq);
+        auto top = new Node(0, left->freq + right->freq);
         top->left = left;
         top->right = right;
 

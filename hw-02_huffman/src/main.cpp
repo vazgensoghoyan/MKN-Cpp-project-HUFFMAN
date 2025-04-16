@@ -1,26 +1,48 @@
 #include "huffman.hpp"
 #include <iostream>
+#include <fstream>
 
-std::map<unsigned char, size_t> createFrequencyMap(const std::string& input) {
-    std::map<unsigned char, size_t> freqMap;
-    
-    for (char ch : input) {
-        freqMap[ch]++;
-    }
-    
-    return freqMap;
+void compress(std::string input, std::string output) {
+    std::ifstream input_(input);
+    std::ofstream output_(input);
+
+    huffman::HuffmanArchive::compress(input_, output_);
 }
 
-int main() {
-    huffman::HuffmanTree tree( createFrequencyMap("abhjdjjajajajjj hello") );
+void decompress(std::string input, std::string output) {
+    std::ifstream input_(input);
+    std::ofstream output_(input);
 
-    tree.print();
+    huffman::HuffmanArchive::decompress(input_, output_);
+}
 
-    auto huffmanCode = tree.get_codes();
+int main(int argc, char **argv) {
+    int NEEDED_ARGC = 6;
 
-    for (auto it = huffmanCode.begin(); it != huffmanCode.end(); ++it) {
-        std::cout << it->first << ' ' << it->second << std::endl;
+    if (argc != NEEDED_ARGC)
+        return 1;
+
+    bool COMPRESS = true;
+    std::string INPUT;
+    std::string OUTPUT;
+
+    for (int i = 1; i < NEEDED_ARGC; ++i) {
+        if (argv[i] == "-c")
+            COMPRESS = true;
+        else if (argv[i] == "-u")
+            COMPRESS = false;
+        else if (argv[i] == "-f" || argv[i] == "--file")
+            INPUT = argv[++i];
+        else if (argv[i] == "-o" || argv[i] == "--output")
+            INPUT = argv[++i];
+        else
+            return 1;
     }
-    
+
+    if (COMPRESS)
+        compress(INPUT, OUTPUT);
+    else
+        decompress(INPUT, OUTPUT);
+
     return 0;
 }
