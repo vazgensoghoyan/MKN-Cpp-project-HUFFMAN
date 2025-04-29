@@ -1,20 +1,8 @@
 #include "huffman.hpp"
 #include <iostream>
 #include <fstream>
+#include <cstring>
 
-void compress(std::string input, std::string output) {
-    std::ifstream input_(input);
-    std::ofstream output_(input);
-
-    huffman::HuffmanArchive::compress(input_, output_);
-}
-
-void decompress(std::string input, std::string output) {
-    std::ifstream input_(input);
-    std::ofstream output_(input);
-
-    huffman::HuffmanArchive::decompress(input_, output_);
-}
 
 int main(int argc, char **argv) {
     int NEEDED_ARGC = 6;
@@ -27,22 +15,36 @@ int main(int argc, char **argv) {
     std::string OUTPUT;
 
     for (int i = 1; i < NEEDED_ARGC; ++i) {
-        if (argv[i] == "-c")
+        if ( std::strcmp(argv[i], "-c") == 0 )
             COMPRESS = true;
-        else if (argv[i] == "-u")
+        else if ( std::strcmp(argv[i], "-u") == 0 )
             COMPRESS = false;
-        else if (argv[i] == "-f" || argv[i] == "--file")
+        else if ( std::strcmp(argv[i], "-f") == 0 || std::strcmp(argv[i], "--file") == 0 )
             INPUT = argv[++i];
-        else if (argv[i] == "-o" || argv[i] == "--output")
-            INPUT = argv[++i];
+        else if ( std::strcmp(argv[i], "-o") == 0 || std::strcmp(argv[i], "--output") == 0 )
+            OUTPUT = argv[++i];
         else
             return 1;
     }
 
+    std::ifstream is(INPUT, std::ios::binary);
+    std::ofstream os(OUTPUT, std::ios::binary);
+
+    if (!is)
+        throw huffman::HuffmanException("Failed to open input file");
+    if (!os)
+        throw huffman::HuffmanException("Failed to open output file");
+
+    huffman::ArchiveInfo stats{0, 0, 0};
+
     if (COMPRESS)
-        compress(INPUT, OUTPUT);
+        stats = huffman::HuffmanArchive::compress(is, os);
     else
-        decompress(INPUT, OUTPUT);
+        stats = huffman::HuffmanArchive::decompress(is, os);
+
+    std::cout << stats.original_size << std::endl;
+    std::cout << stats.compressed_size << std::endl;
+    std::cout << stats.extra_size << std::endl;
 
     return 0;
 }

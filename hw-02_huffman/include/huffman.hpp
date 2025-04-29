@@ -11,17 +11,29 @@
 namespace huffman {
 
 class HuffmanTree {
+public:
+    HuffmanTree();
+    explicit HuffmanTree(const std::map<char, std::size_t>& freqMap);
+    ~HuffmanTree();
+    
+    void build_tree(const std::map<char, std::size_t>& freqMap);
+    std::map<char, std::string> get_codes() const;
+    size_t decode(std::string& data, std::ostream& os) const;
+
+    void print() const {
+        HuffmanTreePrinter::printTree(root_);
+    }
+
 private:
     struct Node {
-        unsigned char data;
+        char data;
         std::size_t freq;
         Node* left;
         Node* right;
 
-        Node(unsigned char data, std::size_t freq)
+        Node(char data, std::size_t freq)
                 : data(data), freq(freq), left(nullptr), right(nullptr) {}
     };
-
 
 class HuffmanTreePrinter {
 public:
@@ -80,46 +92,33 @@ private:
         printCodes(node->right, code + "1");
     }
 };
-
-
-    void delete_tree(Node* node);
-    void generateCodeHelper(Node* node, std::string code, 
-                            std::map<unsigned char, std::string>& codes);
-
-public:
-    HuffmanTree();
-    explicit HuffmanTree(const std::map<unsigned char, std::size_t>& freqMap);
-    ~HuffmanTree();
     
-    void build_tree(const std::map<unsigned char, std::size_t>& freqMap);
-    std::map<unsigned char, std::string> get_codes() const;
-
-    void print() const {
-        HuffmanTreePrinter::printTree(root_);
-    }
-
+    void delete_tree(Node* node);
+    void generateCodeHelper(Node* node, std::string code);
+    
 private:
     Node* root_;
-    std::map<unsigned char, std::string> symbolCodes_;
-    
+    std::map<char, std::string> symbolCodes_;
 };
 
 struct ArchiveInfo {
     std::size_t original_size;
     std::size_t compressed_size;
     std::size_t extra_size;
+
+    ArchiveInfo(std::size_t os, std::size_t cs, std::size_t es)
+        : original_size(os), compressed_size(cs), extra_size(es) {}
 };
 
 class HuffmanArchive {
 public:
-    static ArchiveInfo compress(std::istream& in, std::ostream& out);
-    static ArchiveInfo decompress(std::istream& in, std::ostream& out);
+    static ArchiveInfo compress(std::istream&, std::ostream&);
+    static ArchiveInfo decompress(std::istream&, std::ostream&);
 };
 
 class HuffmanException : public std::runtime_error {
 public:
-    explicit HuffmanException(const std::string& message) 
-        : std::runtime_error(message) {}
+    explicit HuffmanException(const std::string& message) : std::runtime_error(message) {}
 };
 
 }
