@@ -44,8 +44,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
     std::map<uint8_t, size_t> freqMap;
     char c;
     while (ifs.get(c)) {
-        auto key = static_cast<uint8_t>(c);
-        freqMap[key]++;
+        freqMap[static_cast<uint8_t>(c)]++;
         stats.original_size++;
         buffer += c;
     }
@@ -65,14 +64,14 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
 
         size_t cur_index = 0;
         while (cur_index < value.size()) {
-            size_t size_for_previous_byte = std::min(value.size() - cur_index, 8 - cur_byte.size());
+            size_t prev_byte_size = std::min(value.size() - cur_index, 8 - cur_byte.size());
 
-            cur_byte += value.substr(cur_index, size_for_previous_byte);
-            cur_index += size_for_previous_byte;
+            cur_byte += value.substr(cur_index, prev_byte_size);
+            cur_index += prev_byte_size;
 
             if (cur_byte.size() < 8) break;
 
-            auto byte = convert_string_to_byte(cur_byte);
+            uint8_t byte = convert_string_to_byte(cur_byte);
             stats.compressed_size += write_to_file(ofs, reinterpret_cast<const char *>(&byte), sizeof(uint8_t));
             cur_byte = "";
         }
@@ -80,7 +79,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
 
     if (!cur_byte.empty()) {
         cur_byte.insert(cur_byte.size(), 8 - cur_byte.size(), '0');
-        auto byte = convert_string_to_byte(cur_byte);
+        uint8_t byte = convert_string_to_byte(cur_byte);
         stats.compressed_size += write_to_file(ofs, reinterpret_cast<const char*>(&byte), sizeof(uint8_t));
     }
 
@@ -100,7 +99,8 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
 
     std::map<std::string, uint8_t> symbols;
 
-    ifs.read(reinterpret_cast<char*>(&stats.original_size), sizeof(size_t));
+    size_t result_file_size = 0;
+    ifs.read(reinterpret_cast<char*>(&result_file_size), sizeof(size_t));
     size_t codes_count = 0;
     ifs.read(reinterpret_cast<char*>(&codes_count), sizeof(size_t));
     stats.extra_size += 2 * sizeof(size_t);
@@ -119,7 +119,6 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
         stats.extra_size += sizeof(uint8_t) + sizeof(size_t) + value_size;
     }
 
-    size_t result_file_size = 0;
     char cur_byte;
     std::string cur_value;
 
@@ -128,17 +127,17 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
 
         for (int i = 7; i >= 0; --i) {
             bool cur_bit = (1 << i) & cur_byte;
-            cur_value += char('0' + cur_bit);
+            cur_value += ('0' + cur_bit);
 
-            if (symbols.find(cur_value) != symbols.end() && result_file_size < stats.original_size) {
-                result_file_size += write_to_file(ofs, reinterpret_cast<const char*>(&symbols[cur_value]), sizeof(uint8_t));
+            if (symbols.find(cur_value) != symbols.end() && stats.original_size < result_file_size) {
+                stats.original_size += write_to_file(ofs, reinterpret_cast<const char*>(&symbols[cur_value]), sizeof(uint8_t));
                 cur_value = "";
             }
         }
     }
 
     if (result_file_size != stats.original_size || cur_value.size() >= 8 || convert_string_to_byte(cur_value) != 0)
-        throw std::invalid_argument("Incorrect file format");
+        throw huffman::HuffmanException("Incorrect file format");
 
     return stats;
 }
