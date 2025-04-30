@@ -1,4 +1,5 @@
 #include "huffman.hpp"
+#include "huffman_archive.hpp"
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -27,20 +28,12 @@ int main(int argc, char **argv) {
             return 1;
     }
 
-    std::ifstream is(INPUT, std::ios::binary);
-    std::ofstream os(OUTPUT, std::ios::binary);
-
-    if (!is)
-        throw huffman::HuffmanException("Failed to open input file");
-    if (!os)
-        throw huffman::HuffmanException("Failed to open output file");
-
     huffman::ArchiveInfo stats{0, 0, 0};
 
     if (COMPRESS)
-        stats = huffman::HuffmanArchive::compress(is, os);
+        stats = huffman::HuffmanArchive::compress(INPUT, OUTPUT);
     else
-        stats = huffman::HuffmanArchive::decompress(is, os);
+        stats = huffman::HuffmanArchive::decompress(INPUT, OUTPUT);
 
     std::cout << stats.original_size << std::endl;
     std::cout << stats.compressed_size << std::endl;
