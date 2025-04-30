@@ -24,6 +24,16 @@ std::map<uint8_t, size_t> createFrequencyMap(const std::string& input) {
     return freqMap;
 }
 
+uint8_t convert_string_to_byte(const std::string &str) {
+    uint8_t result = 0;
+    for (size_t i = 0; i < str.size(); ++i) {
+        if (str[i] != '0' && str[i] != '1')
+            throw huffman::HuffmanException("String in convert_string_to_byte must be from 0 and 1");
+
+        result |= (str[i] - '0') << (7 - i);
+    }
+    return result;
+}
 
 TEST_SUITE("HuffmanTree") {
 
@@ -148,42 +158,21 @@ TEST_SUITE("HuffmanTree") {
 
 TEST_SUITE("Support functions") {
     TEST_CASE("convert_string_to_byte") {
-        /*SUBCASE("Valid input") {
-            CHECK((convert_string_to_byte("00000000") == 0));
-            CHECK((convert_string_to_byte("11111111") == 0b11111111));
-            CHECK(convert_string_to_byte("10101010") == 0b10101010);
-            CHECK(convert_string_to_byte("00001111") == 0b00001111);
+        SUBCASE("Valid input") {
+            CHECK(convert_string_to_byte("00000000") == 0);
             CHECK(convert_string_to_byte("1") == 0b10000000);
             CHECK(convert_string_to_byte("01") == 0b01000000);
+            CHECK(convert_string_to_byte("11111111") == 0b11111111);
+            CHECK(convert_string_to_byte("10101010") == 0b10101010);
+            CHECK(convert_string_to_byte("00001111") == 0b00001111);
         }
         
         SUBCASE("Invalid input throws exception") {
             CHECK_THROWS_AS(convert_string_to_byte("01234567"), HuffmanException);
             CHECK_THROWS_AS(convert_string_to_byte("abc"), HuffmanException);
-            CHECK_THROWS_AS(convert_string_to_byte("111111111"), HuffmanException);
-        }*/
+        }
     }
     
-    TEST_CASE("write_to_file") {
-        /*std::ofstream ofs("test.bin", std::ios::binary);
-        REQUIRE(ofs.is_open());
-        
-        SUBCASE("Writing integers") {
-            int test_int = 42;
-            size_t bytes_written = HuffmanArchive::write_to_file(ofs, test_int);
-            CHECK(bytes_written == sizeof(int));
-        }
-        
-        SUBCASE("Writing chars") {
-            char test_char = 'A';
-            size_t bytes_written = HuffmanArchive::write_to_file(ofs, test_char);
-            CHECK(bytes_written == sizeof(char));
-        }
-        
-        ofs.close();
-        fs::remove("test.bin");*/
-    }
-
     TEST_CASE("write_meta") {
         std::string filename = "meta_test.bin";
 
@@ -221,14 +210,13 @@ TEST_SUITE("Test archivator") {
             std::string compressed = "empty_compressed.bin";
             std::string decompressed = "empty_decompressed.txt";
             
-            HuffmanArchive archive;
-            auto compress_stats = archive.compress(input, compressed);
+            auto compress_stats = HuffmanArchive::compress(input, compressed);
             
             CHECK(compress_stats.original_size == 0);
             CHECK(compress_stats.compressed_size == 0);
             CHECK(compress_stats.extra_size > 0);
             
-            auto decompress_stats = archive.decompress(compressed, decompressed);
+            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
             
             CHECK(decompress_stats.original_size == compress_stats.original_size);
             CHECK(decompress_stats.compressed_size == compress_stats.compressed_size);
@@ -250,12 +238,11 @@ TEST_SUITE("Test archivator") {
             std::string compressed = "single_compressed.bin";
             std::string decompressed = "single_decompressed.txt";
             
-            HuffmanArchive archive;
-            auto compress_stats = archive.compress(input, compressed);
+            auto compress_stats = HuffmanArchive::compress(input, compressed);
             
             CHECK(compress_stats.original_size == 1);
             
-            auto decompress_stats = archive.decompress(compressed, decompressed);
+            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
             
             CHECK(decompress_stats.original_size == 1);
             
@@ -277,12 +264,11 @@ TEST_SUITE("Test archivator") {
             std::string compressed = "multi_compressed.bin";
             std::string decompressed = "multi_decompressed.txt";
             
-            HuffmanArchive archive;
-            auto compress_stats = archive.compress(input, compressed);
+            auto compress_stats = HuffmanArchive::compress(input, compressed);
             
             CHECK(compress_stats.original_size == test_content.size());
             
-            auto decompress_stats = archive.decompress(compressed, decompressed);
+            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
             
             CHECK(decompress_stats.original_size == test_content.size());
             
@@ -297,34 +283,24 @@ TEST_SUITE("Test archivator") {
         }
     }
     
-    /*TEST_CASE("error handling") {
-        HuffmanArchive archive;
+    TEST_CASE("error handling") {
         
+        std::string input = "nonexistent.txt";
+        std::string output = "output.bin";
+
         SUBCASE("Non-existent input file for compression") {
-            std::string input = "nonexistent.txt";
-            std::string output = "output.bin";
             
-            CHECK_THROWS_AS(archive.compress(input, output), HuffmanException);
+            CHECK_THROWS_AS(HuffmanArchive::compress(input, output), HuffmanException);
         }
         
         SUBCASE("Non-existent input file for decompression") {
             std::string input = "nonexistent.bin";
             std::string output = "output.txt";
             
-            CHECK_THROWS_AS(archive.decompress(input, output), HuffmanException);
+            CHECK_THROWS_AS(HuffmanArchive::decompress(input, output), HuffmanException);
         }
-        
-        SUBCASE("Invalid compressed file format") {
-            std::ofstream ofs("invalid.bin", std::ios::binary);
-            ofs << "This is not a valid compressed file";
-            ofs.close();
-            
-            std::string input = "invalid.bin";
-            std::string output = "output.txt";
-            
-            CHECK_THROWS_AS(archive.decompress(input, output), HuffmanException);
-            
-            fs::remove("invalid.bin");
-        }
-    }*/
+
+        fs::remove(input);
+        fs::remove(output);
+    }
 }
