@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Флаги компиляции
-add_compile_options(-Wall -Wextra -Werror -O0)
+add_compile_options(-Wall -Wextra -Werror -O2)
 
 # Включаем директории
 include_directories(
