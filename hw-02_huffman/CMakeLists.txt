@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(hw-02_huffman LANGUAGES CXX)
 
 # Устанавливаем выходную директорию в _build
-set(OUTPUT_DIR ${CMAKE_SOURCE_DIR})
+set(OUTPUT_DIR ${CMAKE_SOURCE_DIR}/_build)
 file(MAKE_DIRECTORY ${OUTPUT_DIR})
 
 # Настройки компилятора
