@@ -20,11 +20,12 @@ uint8_t convert_string_to_byte(const std::string &str) {
 
 // HuffmanArchive
 
-size_t huffman::HuffmanArchive::write_to_file(std::ofstream& ofs, const char* data, size_t size) {
-    ofs.write(data, (long)size);
+template<typename T>
+size_t huffman::HuffmanArchive::write_to_file(std::ofstream& ofs, T& data) {
+    ofs.write(reinterpret_cast<const char*>(&data), sizeof(T));
     if (!ofs)
         throw huffman::HuffmanException("Failed to write in file");
-    return size;
+    return sizeof(T);
 }
 
 huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::string& output) {
@@ -72,7 +73,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
             if (cur_byte.size() < 8) break;
 
             uint8_t byte = convert_string_to_byte(cur_byte);
-            stats.compressed_size += write_to_file(ofs, reinterpret_cast<const char *>(&byte), sizeof(uint8_t));
+            stats.compressed_size += write_to_file(ofs, byte);
             cur_byte = "";
         }
     }
@@ -80,7 +81,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
     if (!cur_byte.empty()) {
         cur_byte.insert(cur_byte.size(), 8 - cur_byte.size(), '0');
         uint8_t byte = convert_string_to_byte(cur_byte);
-        stats.compressed_size += write_to_file(ofs, reinterpret_cast<const char*>(&byte), sizeof(uint8_t));
+        stats.compressed_size += write_to_file(ofs, byte);
     }
 
     return stats;
@@ -130,7 +131,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
             cur_value += ('0' + cur_bit);
 
             if (symbols.find(cur_value) != symbols.end() && stats.original_size < result_file_size) {
-                stats.original_size += write_to_file(ofs, reinterpret_cast<const char*>(&symbols[cur_value]), sizeof(uint8_t));
+                stats.original_size += write_to_file(ofs, symbols[cur_value]);
                 cur_value = "";
             }
         }
@@ -145,16 +146,17 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
 size_t huffman::HuffmanArchive::write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes) {
     size_t extra_size = 0;
 
-    extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&bytes_count), sizeof(size_t));
+    extra_size += write_to_file(ofs, bytes_count);
    
     size_t codes_size = codes.size();
-    extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&codes_size), sizeof(size_t));
+    extra_size += write_to_file(ofs, codes_size);
 
     for (auto& pair : codes) {
-        extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&pair.first), sizeof(uint8_t));
+        extra_size += write_to_file(ofs, pair.first);
         size_t len = pair.second.size();
-        extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&len), sizeof(size_t));
-        extra_size += write_to_file(ofs, pair.second.data(), len);
+        extra_size += write_to_file(ofs, len);
+        ofs.write(pair.second.data(), len);
+        extra_size += len;
     }
 
     return extra_size;

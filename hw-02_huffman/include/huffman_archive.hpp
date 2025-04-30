@@ -27,7 +27,9 @@ public:
     static ArchiveInfo decompress(std::string& input, std::string& output);
 
 private:
-    static size_t write_to_file(std::ofstream& ofs, const char* data, size_t size);
+    template<typename T>
+    static size_t write_to_file(std::ofstream& ofs, T& data);
+
     static size_t write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes);
 };
 
