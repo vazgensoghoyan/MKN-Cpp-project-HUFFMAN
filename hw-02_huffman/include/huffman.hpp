@@ -23,19 +23,16 @@ private:
     };
 
 public:
-    HuffmanTree();
     explicit HuffmanTree(const std::vector<size_t>& freqMap);
     ~HuffmanTree();
     
-    void build_tree(const std::vector<size_t>& freqMap);
-    void serializeTree(Node* root, std::ofstream& os);
-
     std::map<uint8_t, std::string> get_codes() const;
     size_t decode(std::string& data, std::ostream& os) const;
 
-private:   
+private:
+    void build_tree(const std::vector<size_t>& freqMap);
     void delete_tree(Node* node);
-    void generateCodeHelper(Node* node, std::string code);
+    void generateCodeHelper(Node* node, const std::string& code);
     
 private:
     Node* root_;

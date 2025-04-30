@@ -1,7 +1,9 @@
 #include "huffman.hpp"
 #include "huffman_archive.hpp"
 
-// needed
+namespace huffman {
+
+namespace {
 
 uint8_t convert_string_to_byte(const std::string &str) {
     uint8_t result = 0;
@@ -14,8 +16,9 @@ uint8_t convert_string_to_byte(const std::string &str) {
     return result;
 }
 
-// HuffmanArchive
+} // anonymous namespace
 
+// HuffmanArchive
 
 size_t huffman::HuffmanArchive::write_to_file(std::ofstream& ofs, const char* data, size_t size) {
     ofs.write(data, (long)size);
@@ -57,7 +60,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
     cur_byte.reserve(8);
     for (size_t i = 0; i < buffer.size(); ++i) {
         auto new_byte = buffer[i];
-        auto value = codes[new_byte];
+        auto value = codes[static_cast<uint8_t>(new_byte)];
 
         size_t cur_index = 0;
         while (cur_index < value.size()) {
@@ -101,6 +104,7 @@ size_t huffman::HuffmanArchive::write_meta(std::ofstream& ofs, size_t bytes_coun
     size_t extra_size = 0;
 
     extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&bytes_count), sizeof(size_t));
+   
     size_t codes_size = codes.size();
     extra_size += write_to_file(ofs, reinterpret_cast<const char*>(&codes_size), sizeof(size_t));
 
@@ -113,3 +117,5 @@ size_t huffman::HuffmanArchive::write_meta(std::ofstream& ofs, size_t bytes_coun
 
     return extra_size;
 }
+
+} // namespace huffman

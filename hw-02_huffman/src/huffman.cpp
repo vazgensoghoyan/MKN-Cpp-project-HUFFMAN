@@ -6,10 +6,7 @@
 #include <iostream>
 #include <fstream>
 
-
 // HuffmanTree
-
-huffman::HuffmanTree::HuffmanTree() : root_(nullptr) {}
 
 huffman::HuffmanTree::HuffmanTree(const std::vector<std::size_t>& freqMap) {
     build_tree(freqMap);
@@ -40,7 +37,8 @@ void huffman::HuffmanTree::build_tree(const std::vector<std::size_t>& freqMap) {
     std::priority_queue<Node*, std::vector<Node*>, decltype(compare)> minHeap(compare);
 
     for (size_t i = 0; i < freqMap.size(); ++i)
-        minHeap.push(new Node((uint8_t)i, freqMap[i]));
+        if (freqMap[i] != 0)
+            minHeap.push(new Node((uint8_t)i, freqMap[i]));
 
     while (minHeap.size() != 1) {
         Node* left = minHeap.top();
@@ -62,19 +60,7 @@ void huffman::HuffmanTree::build_tree(const std::vector<std::size_t>& freqMap) {
     generateCodeHelper(root_, "");
 }
 
-void huffman::HuffmanTree::serializeTree(Node* root, std::ofstream& os) {
-    if (!root) return;
-    if (!root->left && !root->right) {
-        os.put('1');
-        os.put(root->data);
-    } else {
-        os.put('0');
-        serializeTree(root->left, os);
-        serializeTree(root->right, os);
-    }
-}
-
-void huffman::HuffmanTree::generateCodeHelper(Node* node, std::string code) {
+void huffman::HuffmanTree::generateCodeHelper(Node* node, const std::string& code) {
     if (node->right)
         generateCodeHelper(node->right, code + "1");
     if (node->left)
