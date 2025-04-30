@@ -30,14 +30,20 @@ int main(int argc, char **argv) {
 
     huffman::ArchiveInfo stats{0, 0, 0};
 
-    if (COMPRESS)
+    if (COMPRESS) {
         stats = huffman::HuffmanArchive::compress(INPUT, OUTPUT);
-    else
+
+        std::cout << stats.original_size << std::endl;
+        std::cout << stats.compressed_size << std::endl;
+        std::cout << stats.extra_size << std::endl;
+    }
+    else {
         stats = huffman::HuffmanArchive::decompress(INPUT, OUTPUT);
 
-    std::cout << stats.original_size << std::endl;
-    std::cout << stats.compressed_size << std::endl;
-    std::cout << stats.extra_size << std::endl;
+        std::cout << stats.compressed_size << std::endl;
+        std::cout << stats.original_size << std::endl;
+        std::cout << stats.extra_size << std::endl;
+    }
 
     return 0;
 }
