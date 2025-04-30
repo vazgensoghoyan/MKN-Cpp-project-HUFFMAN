@@ -88,7 +88,7 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
 
 huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std::string& output) {
     ArchiveInfo stats{0, 0, 0};
-
+    
     std::ifstream ifs(input, std::ios::binary);
     if (!ifs.is_open())
         throw huffman::HuffmanException("Input file is not opened!");
@@ -96,6 +96,48 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
     std::ofstream ofs(output, std::ios::binary);
     if (!ofs.is_open())
         throw huffman::HuffmanException("Output file is not opened!");
+
+    std::map<std::string, uint8_t> symbols;
+
+    ifs.read(reinterpret_cast<char*>(&stats.original_size), sizeof(size_t));
+    size_t codes_count = 0;
+    ifs.read(reinterpret_cast<char*>(&codes_count), sizeof(size_t));
+    stats.extra_size += 2 * sizeof(size_t);
+
+    for (size_t i = 0; i < codes_count; ++i) {
+        uint8_t byte = 0;
+        ifs.read(reinterpret_cast<char*>(&byte), sizeof(uint8_t));
+        size_t value_size = 0;
+        ifs.read(reinterpret_cast<char*>(&value_size), sizeof(size_t));
+
+        std::string value = "";
+        for (size_t i = 0; i < value_size; ++i)
+            value += ifs.get();
+
+        symbols.emplace(value, byte);
+        stats.extra_size += sizeof(uint8_t) + sizeof(size_t) + value_size;
+    }
+
+    size_t result_file_size = 0;
+    char cur_byte;
+    std::string cur_value;
+
+    while (ifs.get(cur_byte)) {
+        stats.compressed_size++;
+
+        for (int i = 7; i >= 0; --i) {
+            bool cur_bit = (1 << i) & cur_byte;
+            cur_value += char('0' + cur_bit);
+
+            if (symbols.find(cur_value) != symbols.end() && result_file_size < stats.original_size) {
+                result_file_size += write_to_file(ofs, reinterpret_cast<const char*>(&symbols[cur_value]), sizeof(uint8_t));
+                cur_value = "";
+            }
+        }
+    }
+
+    if (result_file_size != stats.original_size || cur_value.size() >= 8 || convert_string_to_byte(cur_value) != 0)
+        throw std::invalid_argument("Incorrect file format");
 
     return stats;
 }

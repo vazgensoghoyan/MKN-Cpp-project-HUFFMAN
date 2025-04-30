@@ -72,27 +72,6 @@ void huffman::HuffmanTree::generateCodeHelper(Node* node, const std::string& cod
     symbolCodes_.emplace(node->data, code == "" ? "0" : code);
 }
 
-
 std::map<uint8_t, std::string> huffman::HuffmanTree::get_codes() const {
     return symbolCodes_;
-}
-
-size_t huffman::HuffmanTree::decode(std::string& data, std::ostream& os) const {
-    auto current = root_;
-    size_t decodedSize = 0;
-    
-    for (uint8_t bit : data) {
-        if (bit == '0')
-            current = current->left;
-        else
-            current = current->right;
-        
-        if (!current->right && !current->left) {
-            os.put(current->data);
-            decodedSize++;
-            current = root_;
-        }
-    }
-
-    return decodedSize;
 }

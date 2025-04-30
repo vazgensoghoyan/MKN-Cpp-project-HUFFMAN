@@ -27,7 +27,6 @@ public:
     ~HuffmanTree();
     
     std::map<uint8_t, std::string> get_codes() const;
-    size_t decode(std::string& data, std::ostream& os) const;
 
 private:
     void build_tree(const std::vector<size_t>& freqMap);
