@@ -8,7 +8,7 @@
 
 // HuffmanTree
 
-huffman::HuffmanTree::HuffmanTree(const std::vector<std::size_t>& freqMap) {
+huffman::HuffmanTree::HuffmanTree(const std::map<uint8_t, size_t>& freqMap) {
     build_tree(freqMap);
 }
 
@@ -24,7 +24,7 @@ void huffman::HuffmanTree::delete_tree(Node* node) {
     }
 }
 
-void huffman::HuffmanTree::build_tree(const std::vector<std::size_t>& freqMap) {
+void huffman::HuffmanTree::build_tree(const std::map<uint8_t, size_t>& freqMap) {
     if (freqMap.empty()) {
         root_ = nullptr;
         return;
@@ -36,9 +36,8 @@ void huffman::HuffmanTree::build_tree(const std::vector<std::size_t>& freqMap) {
 
     std::priority_queue<Node*, std::vector<Node*>, decltype(compare)> minHeap(compare);
 
-    for (size_t i = 0; i < freqMap.size(); ++i)
-        if (freqMap[i] != 0)
-            minHeap.push(new Node((uint8_t)i, freqMap[i]));
+    for (auto& pair : freqMap)
+        minHeap.push(new Node(pair.first, pair.second));
 
     while (minHeap.size() != 1) {
         Node* left = minHeap.top();

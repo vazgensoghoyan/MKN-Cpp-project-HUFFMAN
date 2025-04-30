@@ -23,13 +23,13 @@ private:
     };
 
 public:
-    explicit HuffmanTree(const std::vector<size_t>& freqMap);
+    explicit HuffmanTree(const std::map<uint8_t, size_t>& freqMap);
     ~HuffmanTree();
     
     std::map<uint8_t, std::string> get_codes() const;
 
 private:
-    void build_tree(const std::vector<size_t>& freqMap);
+    void build_tree(const std::map<uint8_t, size_t>& freqMap);
     void delete_tree(Node* node);
     void generateCodeHelper(Node* node, const std::string& code);
     

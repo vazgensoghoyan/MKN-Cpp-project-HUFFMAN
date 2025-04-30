@@ -38,14 +38,15 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
         throw huffman::HuffmanException("Output file is not opened!");
 
     ArchiveInfo stats{0, 0, 0};
-    
+
     // Meta data
-    std::string buffer = "";
-    std::vector<size_t> freqMap(256, 0);
+    std::string buffer;
+    std::map<uint8_t, size_t> freqMap;
     char c;
     while (ifs.get(c)) {
-        freqMap[static_cast<size_t>(c)]++;
-        stats.original_size += 1;
+        auto key = static_cast<uint8_t>(c);
+        freqMap[key]++;
+        stats.original_size++;
         buffer += c;
     }
 
