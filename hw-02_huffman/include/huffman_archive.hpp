@@ -21,15 +21,34 @@ struct ArchiveInfo {
         : original_size(os), compressed_size(cs), extra_size(es) {}
 };
 
-class HuffmanArchive {
+class ArchivatorAlgorithm {
 public:
-    static ArchiveInfo compress(std::string& input, std::string& output);
-    static ArchiveInfo decompress(std::string& input, std::string& output);
+    ArchivatorAlgorithm(std::string& input, std::string& output)
+             : input_(input), output_(output) {}
 
+    virtual ArchiveInfo compress();
+    virtual ArchiveInfo decompress();
+
+protected:
+    std::string input_;
+    std::string output_;
+};
+
+class HuffmanArchive : ArchivatorAlgorithm {
+public:
+    HuffmanArchive(std::string& input, std::string& output)
+             : ArchivatorAlgorithm(input, output) {}
+
+    virtual ArchiveInfo compress() override;
+    virtual ArchiveInfo decompress() override;
+
+private:
     template<typename T>
     static size_t write_to_file(std::ofstream& ofs, T& data);
 
     static size_t write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes);
+
+    friend class HuffmanArchiveTest;
 };
 
 } // namespace huffman

@@ -9,7 +9,7 @@ uint8_t convert_string_to_byte(const std::string &str) {
     uint8_t result = 0;
     for (size_t i = 0; i < str.size(); ++i) {
         if (str[i] != '0' && str[i] != '1')
-            throw huffman::HuffmanException("String in convert_string_to_byte must be from 0 and 1");
+            throw HuffmanException("String in convert_string_to_byte must be from 0 and 1");
 
         result |= (str[i] - '0') << (7 - i);
     }
@@ -21,22 +21,22 @@ uint8_t convert_string_to_byte(const std::string &str) {
 // HuffmanArchive
 
 template<typename T>
-size_t huffman::HuffmanArchive::write_to_file(std::ofstream& ofs, T& data) {
+size_t HuffmanArchive::write_to_file(std::ofstream& ofs, T& data) {
     ofs.write(reinterpret_cast<const char*>(&data), sizeof(T));
     if (!ofs)
-        throw huffman::HuffmanException("Failed to write in file");
+        throw HuffmanException("Failed to write in file");
     return sizeof(T);
 }
 
-huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::string& output) {
+ArchiveInfo HuffmanArchive::compress() {
     // Opening files
-    std::ifstream ifs(input, std::ios::binary);
+    std::ifstream ifs(input_, std::ios::binary);
     if (!ifs.is_open())
-        throw huffman::HuffmanException("Input file is not opened!");
+        throw HuffmanException("Input file is not opened!");
     
-    std::ofstream ofs(output, std::ios::binary);
+    std::ofstream ofs(output_, std::ios::binary);
     if (!ofs.is_open())
-        throw huffman::HuffmanException("Output file is not opened!");
+        throw HuffmanException("Output file is not opened!");
 
     ArchiveInfo stats{0, 0, 0};
 
@@ -87,16 +87,16 @@ huffman::ArchiveInfo huffman::HuffmanArchive::compress(std::string& input, std::
     return stats;
 }
 
-huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std::string& output) {
+ArchiveInfo HuffmanArchive::decompress() {
     ArchiveInfo stats{0, 0, 0};
     
-    std::ifstream ifs(input, std::ios::binary);
+    std::ifstream ifs(input_, std::ios::binary);
     if (!ifs.is_open())
-        throw huffman::HuffmanException("Input file is not opened!");
+        throw HuffmanException("Input file is not opened!");
     
-    std::ofstream ofs(output, std::ios::binary);
+    std::ofstream ofs(output_, std::ios::binary);
     if (!ofs.is_open())
-        throw huffman::HuffmanException("Output file is not opened!");
+        throw HuffmanException("Output file is not opened!");
 
     std::map<std::string, uint8_t> symbols;
 
@@ -138,12 +138,12 @@ huffman::ArchiveInfo huffman::HuffmanArchive::decompress(std::string& input, std
     }
 
     if (result_file_size != stats.original_size || cur_value.size() >= 8 || convert_string_to_byte(cur_value) != 0)
-        throw huffman::HuffmanException("Incorrect file format");
+        throw HuffmanException("Incorrect file format");
 
     return stats;
 }
 
-size_t huffman::HuffmanArchive::write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes) {
+size_t HuffmanArchive::write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes) {
     size_t extra_size = 0;
 
     extra_size += write_to_file(ofs, bytes_count);
