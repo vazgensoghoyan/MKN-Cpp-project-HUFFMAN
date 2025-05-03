@@ -24,13 +24,12 @@ void ArchivatorInputParser::parse_arguments(int argc, char** argv){
     }
 }
 
+template<typename Alg>
 void ArchivatorInputParser::run_command() {
-    // assert with interface
-    // this method should be a template
-    //static_assert(std::is_base_of<huffman::ArchivatorAlgorithm, Alg>::value,
-    //              "Alg must be a descendant of ArchivatorAlgorithm");
+    static_assert(std::is_base_of<huffman::IArchivatorAlgorithm, Alg>::value,
+                  "Alg must be a descendant of ArchivatorAlgorithm");
 
-    huffman::HuffmanArchive alg(input_file, output_file);
+    Alg alg(input_file, output_file);
     huffman::ArchiveInfo stats{0, 0, 0};
 
     if (compression_status) {
@@ -48,6 +47,8 @@ void ArchivatorInputParser::run_command() {
         std::cout << stats.extra_size << std::endl;
     }
 }
+
+template void ArchivatorInputParser::run_command<huffman::HuffmanArchive>();
 
 std::string ArchivatorInputParser::get_input_file() const {
     return input_file;

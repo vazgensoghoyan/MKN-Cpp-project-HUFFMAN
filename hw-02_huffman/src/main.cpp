@@ -9,9 +9,7 @@ int main(int argc, char **argv) {
     
     parser::ArchivatorInputParser prsr(argc, argv);
 
-    // right usage with interface
-    //prsr.run_command<huffman::HuffmanArchive>();
-    prsr.run_command();
+    prsr.run_command<huffman::HuffmanArchive>();
 
     return 0;
 }

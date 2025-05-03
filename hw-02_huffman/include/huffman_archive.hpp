@@ -24,26 +24,25 @@ struct ArchiveInfo {
 
 // TODO interface
 // yet is not used
-class ArchivatorAlgorithm {
+class IArchivatorAlgorithm {
 public:
-    ArchivatorAlgorithm(std::string& input, std::string& output)
-             : input_(input), output_(output) {}
+    IArchivatorAlgorithm(std::string& input, std::string& output) : input_(input), output_(output) {}
+    virtual ~IArchivatorAlgorithm() = default;
 
-    virtual ArchiveInfo compress();
-    virtual ArchiveInfo decompress();
+    virtual ArchiveInfo compress() = 0;
+    virtual ArchiveInfo decompress() = 0;
 
 protected:
     std::string input_;
     std::string output_;
 };
 
-class HuffmanArchive {
+class HuffmanArchive : public IArchivatorAlgorithm {
 public:
-    HuffmanArchive(std::string& input, std::string& output)
-    : input_(input), output_(output) {}
+    HuffmanArchive(std::string& input, std::string& output) : IArchivatorAlgorithm(input, output) {}
 
-    ArchiveInfo compress();
-    ArchiveInfo decompress();
+    virtual ArchiveInfo compress() override;
+    virtual ArchiveInfo decompress() override;
 
 private:
     template<typename T>
@@ -52,10 +51,6 @@ private:
     static size_t write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes);
 
     friend class HuffmanArchiveTest;
-
-private:
-    std::string input_;
-    std::string output_;
 };
 
 } // namespace huffman

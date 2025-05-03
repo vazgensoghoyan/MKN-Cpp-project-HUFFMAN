@@ -14,6 +14,7 @@ public:
     ArchivatorInputParser(int argc, char** argv);
     ~ArchivatorInputParser();
 
+    template<typename Alg>
     void run_command();
 
     std::string get_input_file() const;
