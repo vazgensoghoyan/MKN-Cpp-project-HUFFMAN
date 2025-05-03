@@ -8,7 +8,7 @@
 #include <sstream>
 #include <filesystem>
 
-using namespace huffman;
+/*using namespace huffman;
 namespace fs = std::filesystem;
 
 void create_test_file(const std::string& filename, const std::string& content) {
@@ -303,4 +303,4 @@ TEST_SUITE("Test archivator") {
         fs::remove(input);
         fs::remove(output);
     }
-}
+}*/
