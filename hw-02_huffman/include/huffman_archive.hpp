@@ -26,31 +26,40 @@ struct ArchiveInfo {
 // yet is not used
 class IArchivatorAlgorithm {
 public:
-    IArchivatorAlgorithm(std::string& input, std::string& output) : input_(input), output_(output) {}
+    IArchivatorAlgorithm(std::string input, std::string output) : input_path_(input), output_path_(output) {}
     virtual ~IArchivatorAlgorithm() = default;
 
     virtual ArchiveInfo compress() = 0;
     virtual ArchiveInfo decompress() = 0;
 
 protected:
-    std::string input_;
-    std::string output_;
+    std::string input_path_;
+    std::string output_path_;
 };
 
 class HuffmanArchive : public IArchivatorAlgorithm {
 public:
-    HuffmanArchive(std::string& input, std::string& output) : IArchivatorAlgorithm(input, output) {}
+    HuffmanArchive(std::string& input, std::string& output);
 
     virtual ArchiveInfo compress() override;
     virtual ArchiveInfo decompress() override;
 
 private:
-    template<typename T>
-    static size_t write_to_file(std::ofstream& ofs, T& data);
+    void open_streams();
 
-    static size_t write_meta(std::ofstream& ofs, size_t bytes_count, std::map<uint8_t, std::string> &codes);
+    template<typename T>
+    size_t read_from_file(T& data);
+    template<typename T>
+    size_t write_to_file(T& data);
+
+    size_t write_meta(size_t bytes_count, std::map<uint8_t, std::string> &codes);
+    std::string read_freq_map_and_return_text(std::map<uint8_t, size_t>& freqMap);
 
     friend class HuffmanArchiveTest;
+
+private:
+    std::ifstream input_;
+    std::ofstream output_;
 };
 
 } // namespace huffman
