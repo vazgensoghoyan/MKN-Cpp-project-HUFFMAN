@@ -31,6 +31,11 @@ void HuffmanArchive::open_streams() {
         throw HuffmanException("Failed to open output stream");
 }
 
+void HuffmanArchive::close_streams() {
+    input_stream_.close();
+    output_stream_.close();
+}
+
 template<typename T>
 size_t HuffmanArchive::read_from_file(T& data) {
     input_stream_.read(reinterpret_cast<char*>(&data), sizeof(T));
@@ -67,6 +72,8 @@ ArchiveInfo HuffmanArchive::compress() {
     stats.extra_size = write_meta(buffer.size(), codes);
     stats.compressed_size = write_compressed_data(buffer, codes);
 
+    close_streams();
+
     return stats;
 }
 
@@ -81,6 +88,8 @@ ArchiveInfo HuffmanArchive::decompress() {
     stats.extra_size = read_meta(orig_size_from_meta, symbols);
     stats.original_size = orig_size_from_meta;
     stats.compressed_size = read_compressed_data(orig_size_from_meta, symbols);
+
+    close_streams();
 
     return stats;
 }

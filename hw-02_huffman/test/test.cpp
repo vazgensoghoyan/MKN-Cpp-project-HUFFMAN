@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "doctest.h"
 #include "huffman.hpp"
 #include "huffman_archive.hpp"
+#include <doctest/doctest.h>
 #include <map>
 #include <cstdint>
 #include <fstream>
@@ -11,21 +11,6 @@
 using namespace huffman;
 namespace fs = std::filesystem;
 
-void create_test_file(const std::string& filename, const std::string& content) {
-    std::ofstream out(filename, std::ios::binary);
-    out.write(content.data(), content.size());
-}
-
-uint8_t convert_string_to_byte(const std::string &str) {
-    uint8_t result = 0;
-    for (size_t i = 0; i < str.size(); ++i) {
-        if (str[i] != '0' && str[i] != '1')
-            throw huffman::HuffmanException("String in convert_string_to_byte must be from 0 and 1");
-
-        result |= (str[i] - '0') << (7 - i);
-    }
-    return result;
-}
 
 TEST_SUITE("HuffmanTree") {
 
@@ -148,151 +133,94 @@ TEST_SUITE("HuffmanTree") {
 }
 
 
-/*TEST_SUITE("Support functions") {
-    TEST_CASE("convert_string_to_byte") {
-        SUBCASE("Valid input") {
-            CHECK(convert_string_to_byte("00000000") == 0);
-            CHECK(convert_string_to_byte("1") == 0b10000000);
-            CHECK(convert_string_to_byte("01") == 0b01000000);
-            CHECK(convert_string_to_byte("11111111") == 0b11111111);
-            CHECK(convert_string_to_byte("10101010") == 0b10101010);
-            CHECK(convert_string_to_byte("00001111") == 0b00001111);
-        }
-        
-        SUBCASE("Invalid input throws exception") {
-            CHECK_THROWS_AS(convert_string_to_byte("01234567"), HuffmanException);
-            CHECK_THROWS_AS(convert_string_to_byte("abc"), HuffmanException);
-        }
-    }
-    
-    TEST_CASE("write_meta") {
-        std::string filename = "meta_test.bin";
+TEST_SUITE("HuffmanArchive Tests") {
 
-        std::ofstream ofs(filename, std::ios::binary);
-        REQUIRE(ofs.is_open());
-        
-        std::map<uint8_t, std::string> codes = {
-            {'A', "0"},
-            {'B', "10"},
-            {'C', "11"}
-        };
-        size_t bytes_count = 100;
-        
-        size_t extra_size = HuffmanArchive::write_meta(ofs, bytes_count, codes);
-        
-        size_t expected_size = 2 * sizeof(size_t) + 
-                               (sizeof(uint8_t) + sizeof(size_t) + 1) + 
-                               (sizeof(uint8_t) + sizeof(size_t) + 2) + 
-                               (sizeof(uint8_t) + sizeof(size_t) + 2);
-                               
-        CHECK(extra_size == expected_size);
-        
-        ofs.close();
-        fs::remove(filename);
+    void create_test_file(const std::string& path, const std::string& content) {
+        std::ofstream f(path);
+        f << content;
     }
-}*/
-/*
-TEST_SUITE("Test archivator") {
-    TEST_CASE("compress and decompress") {
-        SUBCASE("Empty file") {
-            std::ofstream ofs("empty.txt", std::ios::binary);
-            ofs.close();
-            
+
+    bool files_equal(const std::string& path1, const std::string& path2) {
+        std::ifstream f1(path1), f2(path2);
+        return std::equal(
+            std::istreambuf_iterator<char>(f1),
+            std::istreambuf_iterator<char>(),
+            std::istreambuf_iterator<char>(f2)
+        );
+    }
+
+    TEST_CASE("Compression Tests") {
+
+        SUBCASE("Empty file compression") {
             std::string input = "empty.txt";
-            std::string compressed = "empty_compressed.bin";
-            std::string decompressed = "empty_decompressed.txt";
-            
-            auto compress_stats = HuffmanArchive::compress(input, compressed);
-            
-            CHECK(compress_stats.original_size == 0);
-            CHECK(compress_stats.compressed_size == 0);
-            CHECK(compress_stats.extra_size > 0);
-            
-            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
-            
-            CHECK(decompress_stats.original_size == compress_stats.original_size);
-            CHECK(decompress_stats.compressed_size == compress_stats.compressed_size);
-            CHECK(decompress_stats.extra_size == compress_stats.extra_size);
-            
-            std::ifstream ifs(decompressed, std::ios::binary);
-            ifs.seekg(0, std::ios::end);
-            CHECK(ifs.tellg() == 0);
-            
-            fs::remove(input);
-            fs::remove(compressed);
-            fs::remove(decompressed);
-        }
-        
-        SUBCASE("Single character file") {
-            std::string input = "single.txt";
-            create_test_file(input, "A");
+            std::string output = "empty_compressed.bin";
 
-            std::string compressed = "single_compressed.bin";
-            std::string decompressed = "single_decompressed.txt";
+            create_test_file(input, "");
+            HuffmanArchive archive(input, output);
             
-            auto compress_stats = HuffmanArchive::compress(input, compressed);
-            
-            CHECK(compress_stats.original_size == 1);
-            
-            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
-            
-            CHECK(decompress_stats.original_size == 1);
-            
-            std::ifstream ifs(decompressed, std::ios::binary);
-            char c;
-            ifs.get(c);
-            CHECK(c == 'A');
+            ArchiveInfo info = archive.compress();
+            CHECK(info.original_size == 0);
+            CHECK(info.compressed_size == 0);
+            CHECK(info.extra_size > 0); // meta data
             
             fs::remove(input);
-            fs::remove(compressed);
-            fs::remove(decompressed);
+            fs::remove(output);
         }
-        
-        SUBCASE("Multiple characters file") {
-            std::string test_content = "ABRACADABRA";
-            std::string input = "multi.txt";
-            create_test_file(input, test_content);
+
+        SUBCASE("Non-empty file compression") {
+            std::string input = "sample.txt";
+            std::string output = "compressed.bin";
+
+            create_test_file("sample.txt", "hello world");
+            HuffmanArchive archive(input, output);
             
-            std::string compressed = "multi_compressed.bin";
-            std::string decompressed = "multi_decompressed.txt";
-            
-            auto compress_stats = HuffmanArchive::compress(input, compressed);
-            
-            CHECK(compress_stats.original_size == test_content.size());
-            
-            auto decompress_stats = HuffmanArchive::decompress(compressed, decompressed);
-            
-            CHECK(decompress_stats.original_size == test_content.size());
-            
-            std::ifstream ifs(decompressed, std::ios::binary);
-            std::stringstream buffer;
-            buffer << ifs.rdbuf();
-            CHECK(buffer.str() == test_content);
+            ArchiveInfo info = archive.compress();
+            CHECK(info.original_size == 11);
+            CHECK(info.compressed_size > 0);
+            CHECK(info.compressed_size < info.original_size); // Проверка сжатия
+            CHECK(info.extra_size > 0);
             
             fs::remove(input);
-            fs::remove(compressed);
-            fs::remove(decompressed);
+            fs::remove(output);
         }
     }
-    
-    TEST_CASE("error handling") {
-        
-        std::string input = "nonexistent.txt";
-        std::string output = "output.bin";
 
-        SUBCASE("Non-existent input file for compression") {
+    TEST_CASE("Decompression Tests") {
+
+        SUBCASE("Round-trip compression/decompression") {
+            std::string f1 = "original.txt";
+            std::string f2 = "compressed.bin";
+            std::string f3 = "decompressed.txt";
+
+            create_test_file(f1, "test data for huffman");
+
+            HuffmanArchive compressor(f1, f2);
+            ArchiveInfo comp_stats = compressor.compress();
             
-            CHECK_THROWS_AS(HuffmanArchive::compress(input, output), HuffmanException);
+            HuffmanArchive decompressor(f2, f3);
+            ArchiveInfo decomp_stats = decompressor.decompress();
+            
+            CHECK(decomp_stats.original_size == comp_stats.original_size);
+            CHECK(decomp_stats.compressed_size == comp_stats.compressed_size);
+            CHECK(decomp_stats.extra_size == comp_stats.extra_size);
+            CHECK(files_equal(f1, f3));
+            
+            fs::remove(f1);
+            fs::remove(f2);
+            fs::remove(f3);
         }
-        
-        SUBCASE("Non-existent input file for decompression") {
-            std::string input = "nonexistent.bin";
+
+        SUBCASE("Throws on corrupted data") {
+            std::string input = "corrupted.bin";
             std::string output = "output.txt";
-            
-            CHECK_THROWS_AS(HuffmanArchive::decompress(input, output), HuffmanException);
-        }
 
-        fs::remove(input);
-        fs::remove(output);
+            create_test_file(input, "invalid huffman data");
+            HuffmanArchive archive(input, output);
+            
+            CHECK_THROWS_AS(archive.decompress(), HuffmanException);
+            
+            fs::remove(input);
+            fs::remove(output);
+        }
     }
-}*/
+}

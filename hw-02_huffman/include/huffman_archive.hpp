@@ -44,6 +44,7 @@ public:
 
 private:
     void open_streams();
+    void close_streams();
 
     template<typename T>
     size_t read_from_file(T& data);
@@ -55,8 +56,6 @@ private:
     
     size_t write_compressed_data(std::string& buffer, std::map<uint8_t, std::string>& codes);
     size_t read_compressed_data(size_t expected_orig_size, std::map<std::string, uint8_t>& symbols);
-
-    friend class HuffmanArchiveTest;
 
 private:
     std::ifstream input_stream_;
