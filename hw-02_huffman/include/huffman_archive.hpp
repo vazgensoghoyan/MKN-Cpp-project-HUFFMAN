@@ -51,6 +51,7 @@ private:
     size_t write_to_file(T& data);
 
     size_t write_meta(size_t bytes_count, std::map<uint8_t, std::string> &codes);
+    size_t read_meta(size_t& result_file_size, std::map<std::string, uint8_t> &symbols);
 
     friend class HuffmanArchiveTest;
 

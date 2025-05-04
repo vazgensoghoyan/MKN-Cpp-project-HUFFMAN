@@ -52,14 +52,14 @@ ArchiveInfo HuffmanArchive::compress() {
 
     // Meta data
     std::string buffer;
-    std::map<uint8_t, size_t> freqMap;
+    std::map<uint8_t, size_t> freq_map;
     char c;
     while (input_.get(c)) {
-        freqMap[static_cast<uint8_t>(c)]++;
+        freq_map[static_cast<uint8_t>(c)]++;
         buffer += c;
     }
 
-    HuffmanTree huffmanTree(freqMap);
+    HuffmanTree huffmanTree(freq_map);
     auto codes = huffmanTree.get_codes();
 
     ArchiveInfo stats {
@@ -68,32 +68,31 @@ ArchiveInfo HuffmanArchive::compress() {
         write_meta(buffer.size(), codes)            // extra size
     };
 
-    // Useful data
+    std::bitset<8> current_byte_bits;
+    size_t bits_written = 0;
 
-    std::string cur_byte;
-    cur_byte.reserve(8);
-    for (size_t i = 0; i < buffer.size(); ++i) {
-        auto new_byte = buffer[i];
-        auto value = codes[static_cast<uint8_t>(new_byte)];
+    for (const char c : buffer) {
+        const auto& code = codes.at(static_cast<uint8_t>(c));
 
-        size_t cur_index = 0;
-        while (cur_index < value.size()) {
-            size_t prev_byte_size = std::min(value.size() - cur_index, 8 - cur_byte.size());
+        for (const char bit : code) {
+            if (bit == '1')
+                current_byte_bits.set(7 - bits_written);
 
-            cur_byte += value.substr(cur_index, prev_byte_size);
-            cur_index += prev_byte_size;
-
-            if (cur_byte.size() < 8) break;
-
-            uint8_t byte = convert_string_to_byte(cur_byte);
-            stats.compressed_size += write_to_file(byte);
-            cur_byte = "";
+            if (++bits_written == 8) {
+                // Convert and write full byte
+                const uint8_t byte = static_cast<uint8_t>(current_byte_bits.to_ulong());
+                stats.compressed_size += write_to_file(byte);
+                
+                // Reset for next byte
+                current_byte_bits.reset();
+                bits_written = 0;
+            }
         }
     }
 
-    if (!cur_byte.empty()) {
-        cur_byte.insert(cur_byte.size(), 8 - cur_byte.size(), '0');
-        uint8_t byte = convert_string_to_byte(cur_byte);
+    // Write remaining bits if any
+    if (bits_written > 0) {
+        const uint8_t byte = static_cast<uint8_t>(current_byte_bits.to_ulong());
         stats.compressed_size += write_to_file(byte);
     }
 
@@ -104,27 +103,13 @@ ArchiveInfo HuffmanArchive::decompress() {
     open_streams();
     
     std::map<std::string, uint8_t> symbols;
-    ArchiveInfo stats{0, 0, 0};
+    size_t result_file_size;
 
-    size_t result_file_size = 0;
-    stats.extra_size += read_from_file(result_file_size);
-
-    size_t codes_count = 0;
-    stats.extra_size += read_from_file(codes_count);
-
-    for (size_t i = 0; i < codes_count; ++i) {
-        uint8_t byte;
-        stats.extra_size += read_from_file(byte);
-        size_t value_size;
-        stats.extra_size += read_from_file(value_size);
-
-        std::string value = "";
-        for (size_t i = 0; i < value_size; ++i)
-            value += input_.get();
-
-        symbols.emplace(value, byte);
-        stats.extra_size += value_size;
-    }
+    ArchiveInfo stats {
+        0,                                      // yet no original_size
+        0,                                      // yet no compressed_size
+        read_meta(result_file_size, symbols)    // extra_size
+    };
 
     char cur_byte;
     std::string cur_value;
@@ -165,6 +150,31 @@ size_t HuffmanArchive::write_meta(size_t bytes_count, std::map<uint8_t, std::str
 
         output_.write(pair.second.data(), len);
         extra_size += len;
+    }
+
+    return extra_size;
+}
+
+size_t HuffmanArchive::read_meta(size_t& result_file_size, std::map<std::string, uint8_t> &symbols) {
+    size_t extra_size = 0;
+    
+    extra_size += read_from_file(result_file_size);
+
+    size_t codes_count = 0;
+    extra_size += read_from_file(codes_count);
+
+    for (size_t i = 0; i < codes_count; ++i) {
+        uint8_t byte;
+        extra_size += read_from_file(byte);
+        size_t value_size;
+        extra_size += read_from_file(value_size);
+
+        std::string value = "";
+        for (size_t i = 0; i < value_size; ++i)
+            value += input_.get();
+
+        symbols.emplace(value, byte);
+        extra_size += value_size;
     }
 
     return extra_size;
