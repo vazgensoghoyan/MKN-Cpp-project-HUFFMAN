@@ -1,7 +1,9 @@
 #ifndef ARCHIVATOR_INPUT_PARSER_H_
 #define ARCHIVATOR_INPUT_PARSER_H_
 
+#include "huffman.hpp"
 #include "huffman_archive.hpp"
+#include "huffman_exception.hpp"
 #include <string>
 #include <cstring>
 #include <stdexcept>

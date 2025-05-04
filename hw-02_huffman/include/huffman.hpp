@@ -8,6 +8,9 @@
 #include <stdexcept>
 #include <iostream>
 #include <string>
+#include <queue>
+#include <bitset>
+#include <fstream>
 
 namespace huffman {
 
@@ -36,11 +39,6 @@ private:
 private:
     Node* root_;
     std::map<uint8_t, std::string> symbolCodes_;
-};
-
-class HuffmanException : public std::runtime_error {
-public:
-    explicit HuffmanException(const std::string& message) : std::runtime_error(message) {}
 };
 
 }

@@ -8,20 +8,12 @@
 #include <sstream>
 #include <filesystem>
 
-/*using namespace huffman;
+using namespace huffman;
 namespace fs = std::filesystem;
 
 void create_test_file(const std::string& filename, const std::string& content) {
     std::ofstream out(filename, std::ios::binary);
     out.write(content.data(), content.size());
-}
-
-std::map<uint8_t, size_t> createFrequencyMap(const std::string& input) {
-    std::map<uint8_t, size_t> freqMap;
-    for (char c : input) {
-        freqMap[static_cast<uint8_t>(c)]++;
-    }
-    return freqMap;
 }
 
 uint8_t convert_string_to_byte(const std::string &str) {
@@ -156,7 +148,7 @@ TEST_SUITE("HuffmanTree") {
 }
 
 
-TEST_SUITE("Support functions") {
+/*TEST_SUITE("Support functions") {
     TEST_CASE("convert_string_to_byte") {
         SUBCASE("Valid input") {
             CHECK(convert_string_to_byte("00000000") == 0);
@@ -198,8 +190,8 @@ TEST_SUITE("Support functions") {
         ofs.close();
         fs::remove(filename);
     }
-}
-
+}*/
+/*
 TEST_SUITE("Test archivator") {
     TEST_CASE("compress and decompress") {
         SUBCASE("Empty file") {

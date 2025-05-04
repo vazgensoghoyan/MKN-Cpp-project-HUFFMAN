@@ -1,11 +1,12 @@
 #ifndef HUFFMAN_ARCHIVE_H_
 #define HUFFMAN_ARCHIVE_H_
 
+#include "huffman.hpp"
+#include "huffman_exception.hpp"
 #include <cstddef>
 #include <memory>
 #include <vector>
 #include <map>
-#include <stdexcept>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -21,9 +22,6 @@ struct ArchiveInfo {
         : original_size(os), compressed_size(cs), extra_size(es) {}
 };
 
-
-// TODO interface
-// yet is not used
 class IArchivatorAlgorithm {
 public:
     IArchivatorAlgorithm(std::string input, std::string output) : input_path_(input), output_path_(output) {}
@@ -53,7 +51,6 @@ private:
     size_t write_to_file(T& data);
 
     size_t write_meta(size_t bytes_count, std::map<uint8_t, std::string> &codes);
-    std::string read_freq_map_and_return_text(std::map<uint8_t, size_t>& freqMap);
 
     friend class HuffmanArchiveTest;
 

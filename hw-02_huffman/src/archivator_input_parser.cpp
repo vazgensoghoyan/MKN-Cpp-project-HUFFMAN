@@ -10,7 +10,7 @@ ArchivatorInputParser::~ArchivatorInputParser() = default;
 
 void ArchivatorInputParser::parse_arguments(int argc, char** argv){
     if (argc != NEEDED_ARGC)
-        throw std::invalid_argument("argc count must be " + NEEDED_ARGC);
+        throw huffman::HuffmanException("argc count must be " + std::to_string(NEEDED_ARGC));
 
     for (int i = 1; i < NEEDED_ARGC; ++i) {
         if ( std::strcmp(argv[i], "-c") == 0 )

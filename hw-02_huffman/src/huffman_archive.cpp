@@ -1,4 +1,3 @@
-#include "huffman.hpp"
 #include "huffman_archive.hpp"
 
 namespace huffman {
