@@ -1,16 +1,18 @@
 #include "huffman.hpp"
 
+namespace huffman {
+
 // HuffmanTree
 
-huffman::HuffmanTree::HuffmanTree(const std::map<uint8_t, size_t>& freqMap) {
+HuffmanTree::HuffmanTree(const std::map<uint8_t, size_t>& freqMap) {
     build_tree(freqMap);
 }
 
-huffman::HuffmanTree::~HuffmanTree() {
+HuffmanTree::~HuffmanTree() {
     delete_tree(root_);
 }
 
-void huffman::HuffmanTree::delete_tree(Node* node) {
+void HuffmanTree::delete_tree(Node* node) {
     if (node) {
         delete_tree(node->left);
         delete_tree(node->right);
@@ -18,7 +20,7 @@ void huffman::HuffmanTree::delete_tree(Node* node) {
     }
 }
 
-void huffman::HuffmanTree::build_tree(const std::map<uint8_t, size_t>& freqMap) {
+void HuffmanTree::build_tree(const std::map<uint8_t, size_t>& freqMap) {
     if (freqMap.empty()) {
         root_ = nullptr;
         return;
@@ -53,7 +55,7 @@ void huffman::HuffmanTree::build_tree(const std::map<uint8_t, size_t>& freqMap) 
     generateCodeHelper(root_, "");
 }
 
-void huffman::HuffmanTree::generateCodeHelper(Node* node, const std::string& code) {
+void HuffmanTree::generateCodeHelper(Node* node, const std::string& code) {
     if (node->right)
         generateCodeHelper(node->right, code + "1");
     if (node->left)
@@ -65,6 +67,8 @@ void huffman::HuffmanTree::generateCodeHelper(Node* node, const std::string& cod
     symbolCodes_.emplace(node->data, code == "" ? "0" : code);
 }
 
-std::map<uint8_t, std::string> huffman::HuffmanTree::get_codes() const {
+std::map<uint8_t, std::string> HuffmanTree::get_codes() const {
     return symbolCodes_;
 }
+
+} // namespace huffman
