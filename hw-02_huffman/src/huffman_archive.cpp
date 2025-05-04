@@ -23,11 +23,11 @@ uint8_t convert_string_to_byte(const std::string &str) {
 HuffmanArchive::HuffmanArchive(std::string& input, std::string& output) : IArchivatorAlgorithm(input, output) {}
 
 void HuffmanArchive::open_streams() {
-    std::ifstream input_(input_path_, std::ios::binary);
+    input_.open(input_path_, std::ios::binary);
     if (!input_)
         throw HuffmanException("Failed to open input stream");
 
-    std::ofstream output_(output_path_, std::ios::binary);
+    output_.open(output_path_, std::ios::binary);
     if (!output_)
         throw HuffmanException("Failed to open output stream");
 }
